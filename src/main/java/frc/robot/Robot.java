@@ -39,19 +39,20 @@ public class Robot extends TimedRobot {
   // (600 [100ms] / 1 [Minute]) * (1 [Rev] / 1023 [Native Encoder Ticks])
   private static final double kSensorVelocityToRPM = 600 / 1023; 
 
-  private static final int kTopMotorID = 1;
-  private static final int kBottomMotorID = 2;
+  private static final int kTopMotorID = 21;
+  private static final int kBottomMotorID = 22;
   private static final int kJoystickPort = 0;
   
   private TalonSRX m_top_motor;
   private TalonSRX m_bottom_motor;
-  private TalonSRXConfiguration m_talon_config;
+  private TalonSRXConfiguration m_talon_config = new TalonSRXConfiguration();
   private XboxController m_joystick;
 
   private double m_top_RPM = 0;
   private double m_bottom_RPM = 0;
   private boolean m_isRunning = false;
   private int m_neutralMode = 1;
+  private int m_controlMode = 0;
 
   @Override
   public void robotInit() {
@@ -60,13 +61,13 @@ public class Robot extends TimedRobot {
     m_joystick = new XboxController(kJoystickPort);
     
     // TODO: tune pid. k thanks.
-    m_talon_config.voltageCompSaturation = 11;
-    m_talon_config.continuousCurrentLimit = 25;
+    m_talon_config.voltageCompSaturation = 12;
+    m_talon_config.continuousCurrentLimit = 30;
     m_talon_config.openloopRamp = 0.03; 
     m_talon_config.forwardSoftLimitEnable = false;
     m_talon_config.reverseSoftLimitEnable = false;
     m_talon_config.peakCurrentLimit = 50;
-    m_talon_config.peakCurrentDuration = 10;
+    m_talon_config.peakCurrentDuration = 20;
     m_talon_config.neutralDeadband = 0.03;
     m_talon_config.nominalOutputForward = 0;
     m_talon_config.nominalOutputReverse = 0;
@@ -89,7 +90,8 @@ public class Robot extends TimedRobot {
 
     SmartDashboard.putNumber("Top RPM", m_top_RPM);
     SmartDashboard.putNumber("Bot RPM", m_bottom_RPM);
-    SmartDashboard.putNumber("NeutralMode (0 brake / 1 coast)", (double) m_neutralMode);
+    SmartDashboard.putNumber("NeutralMode (0 brake - 1 coast)", m_neutralMode);
+    SmartDashboard.putNumber("A: ControlMode (0 Velocity - 1 Percent)", m_controlMode);
   }
 
   /*
@@ -98,8 +100,8 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void robotPeriodic() {
-    SmartDashboard.putNumber("Top RPM", m_top_motor.getSelectedSensorVelocity() * kSensorVelocityToRPM);
-    SmartDashboard.putNumber("Bot RPM", m_bottom_motor.getSelectedSensorVelocity() * kSensorVelocityToRPM);
+    SmartDashboard.putNumber("Actual Top RPM", m_top_motor.getSelectedSensorVelocity() * kSensorVelocityToRPM);
+    SmartDashboard.putNumber("Actual Bot RPM", m_bottom_motor.getSelectedSensorVelocity() * kSensorVelocityToRPM);
     m_top_RPM = SmartDashboard.getNumber("Top RPM", 0);
     m_bottom_RPM = SmartDashboard.getNumber("Bot RPM", 0);
   }
@@ -109,7 +111,7 @@ public class Robot extends TimedRobot {
   public void teleopPeriodic() {
     // A button will toggle the control loop off and on
     if (m_joystick.getAButtonPressed()) {
-      m_isRunning = m_isRunning ? !m_isRunning : m_isRunning;
+      m_isRunning = !m_isRunning;
     }
 
     // start button = stop / panic button
@@ -119,7 +121,7 @@ public class Robot extends TimedRobot {
     }
     
     // check if SM value is different than current and then update motors if necessary
-    int smartDashboard_neutralMode = (int) SmartDashboard.getNumber("NeutralMode (0 brake / 1 coast)", 0);
+    int smartDashboard_neutralMode = (int) SmartDashboard.getNumber("NeutralMode (0 brake - 1 coast)", 0);
     if (smartDashboard_neutralMode != m_neutralMode) {
       switch (smartDashboard_neutralMode) {
         case 0:
@@ -133,19 +135,32 @@ public class Robot extends TimedRobot {
           m_neutralMode = smartDashboard_neutralMode;
           break;
         default:
-          SmartDashboard.putNumber("NeutralMode (0 brake / 1 coast)", m_neutralMode);
         break;
       }
+      SmartDashboard.putNumber("NeutralMode (0 brake - 1 coast)", m_neutralMode);
     }
 
     if (m_joystick.getXButton()) {
       // enable joystick percent output
       m_top_motor.set(ControlMode.PercentOutput, m_joystick.getY(Hand.kLeft) * -1 );
       m_bottom_motor.set(ControlMode.PercentOutput, m_joystick.getY(Hand.kRight) * -1 );
-    } else if (m_isRunning) {
-      // set the velocity to the RPM grabbed from dashboard
-      m_top_motor.set(ControlMode.Velocity, m_top_RPM / kSensorVelocityToRPM );
-      m_bottom_motor.set(ControlMode.Velocity, m_bottom_RPM / kSensorVelocityToRPM );
+    } else if (m_joystick.getAButton()) {
+      switch ((int) m_controlMode) {
+        // velocity == 0
+        // percent out == 1
+        case 0:
+      //     // set the velocity to the RPM grabbed from dashboard
+          m_top_motor.set(ControlMode.Velocity, m_top_RPM / kSensorVelocityToRPM );
+          m_bottom_motor.set(ControlMode.Velocity, m_bottom_RPM / kSensorVelocityToRPM );
+          break;
+        case 1:
+          // scale the rpm box input by 1/5000 for ease of coding. 5000 rpm is rough free spin.
+          m_top_motor.set(ControlMode.PercentOutput, m_top_RPM / 5000);
+          m_bottom_motor.set(ControlMode.PercentOutput, m_bottom_RPM / 5000);
+          break;
+        default:
+
+      }
     } else {
       stopMotors();
     }
