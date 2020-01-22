@@ -85,6 +85,7 @@ public class Robot extends TimedRobot {
 
     m_top_motor.configAllSettings(m_talon_config);
     m_top_motor.setNeutralMode(NeutralMode.Coast);
+
     m_bottom_motor.configAllSettings(m_talon_config);
     m_bottom_motor.setNeutralMode(NeutralMode.Coast);
 
@@ -145,22 +146,22 @@ public class Robot extends TimedRobot {
       m_top_motor.set(ControlMode.PercentOutput, m_joystick.getY(Hand.kLeft) * -1 );
       m_bottom_motor.set(ControlMode.PercentOutput, m_joystick.getY(Hand.kRight) * -1 );
     } else if (m_joystick.getAButton()) {
-      switch ((int) m_controlMode) {
+      // switch ((int) m_controlMode) {
         // velocity == 0
         // percent out == 1
-        case 0:
+        // case 0:
       //     // set the velocity to the RPM grabbed from dashboard
-          m_top_motor.set(ControlMode.Velocity, m_top_RPM / kSensorVelocityToRPM );
-          m_bottom_motor.set(ControlMode.Velocity, m_bottom_RPM / kSensorVelocityToRPM );
-          break;
-        case 1:
+          // m_top_motor.set(ControlMode.Velocity, m_top_RPM / kSensorVelocityToRPM );
+          // m_bottom_motor.set(ControlMode.Velocity, m_bottom_RPM / kSensorVelocityToRPM );
+          // break;
+        // case 1:
           // scale the rpm box input by 1/5000 for ease of coding. 5000 rpm is rough free spin.
           m_top_motor.set(ControlMode.PercentOutput, m_top_RPM / 5000);
           m_bottom_motor.set(ControlMode.PercentOutput, m_bottom_RPM / 5000);
-          break;
-        default:
+          // break;
+        // default:
 
-      }
+      //}
     } else {
       stopMotors();
     }
